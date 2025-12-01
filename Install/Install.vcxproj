@@ -21,13 +21,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -71,7 +71,7 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>"$(SolutionDir)BuildTask\bin\$(Configuration)\BuildTask.exe" "$(TargetPath)" -r77helper
+      <Command>"$(SolutionDir)BuildTask\bin\$(Configuration)\net9.0-windows\BuildTask.exe" "$(TargetPath)" -r77helper
 mkdir "$(SolutionDir)$Build"
 xcopy /Y "$(TargetPath)" "$(SolutionDir)$Build"
 "$(SolutionDir)BuildTask\bin\$(Configuration)\net9.0-windows\BuildTask.exe" -shellcodeinstaller "$(SolutionDir)\"</Command>
@@ -107,7 +107,7 @@ xcopy /Y "$(TargetPath)" "$(SolutionDir)$Build"
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>"$(SolutionDir)BuildTask\bin\$(Configuration)\BuildTask.exe" "$(TargetPath)" -r77helper
+      <Command>"$(SolutionDir)BuildTask\bin\$(Configuration)\net9.0-windows\BuildTask.exe" "$(TargetPath)" -r77helper
 mkdir "$(SolutionDir)$Build"
 xcopy /Y "$(TargetPath)" "$(SolutionDir)$Build"
 "$(SolutionDir)BuildTask\bin\$(Configuration)\net9.0-windows\BuildTask.exe" -shellcodeinstaller "$(SolutionDir)\"</Command>

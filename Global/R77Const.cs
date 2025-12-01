@@ -4,6 +4,7 @@
 	public static class R77Const
 	{
 		public const string HidePrefix = "$77";
+		public const ushort R77HeaderOffset = 40;
 		public const ushort R77ServiceSignature = 0x7273;
 		public const ushort R77HelperSignature = 0x7268;
 		public const string ControlPipeName = HidePrefix + "control";

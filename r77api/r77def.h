@@ -13,6 +13,10 @@
 #define HIDE_PREFIX_LENGTH						(sizeof(HIDE_PREFIX) / sizeof(WCHAR) - 1)
 
 /// <summary>
+/// The offset where the r77 header is stored in the main module of the injected process.
+/// </summary>
+#define R77_HEADER_OFFSET						40
+/// <summary>
 /// r77 header signature: The process is injected with the r77 DLL.
 /// </summary>
 #define R77_SIGNATURE							0x7277
@@ -42,10 +46,10 @@
 
 /// <summary>
 /// Specifies a list of processes that will not be injected.
-/// By default, this list includes processes that are known to cause problems.
-/// To customize this list, add custom entries and recompile.
+/// winlogon.exe should not be injected, as it is the host for the r77 service.
+/// Add processes that cause problems and recompile.
 /// </summary>
-#define PROCESS_EXCLUSIONS						{ L"MsMpEng.exe", L"MSBuild.exe" }
+#define PROCESS_EXCLUSIONS						{ L"winlogon.exe", L"MsMpEng.exe", L"MSBuild.exe" }
 
 /// <summary>
 /// The control code that terminates the r77 service.

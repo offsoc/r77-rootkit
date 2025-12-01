@@ -178,7 +178,10 @@ LPVOID GetFunction(LPCSTR dll, LPCSTR function)
 
 	if (!module)
 	{
-		module = LoadLibraryA(dll);
+		if (IsAtLeastWindows10()) // LoadLibraryA here crashes apps on Windows 7, such as explorer.exe
+		{
+			module = LoadLibraryA(dll);
+		}
 	}
 
 	return module ? (LPVOID)GetProcAddress(module, function) : NULL;

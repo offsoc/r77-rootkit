@@ -68,7 +68,7 @@ static byte[] R77Signature(byte[] file, ushort signature)
 {
 	// Write a 16-bit signature to the r77 header.
 	byte[] newFile = file.ToArray();
-	Buffer.BlockCopy(BitConverter.GetBytes(signature), 0, newFile, 64, 2); // The offset of the DOS stub is 64.
+	Buffer.BlockCopy(BitConverter.GetBytes(signature), 0, newFile, R77Const.R77HeaderOffset, 2);
 	return newFile;
 }
 static bool CreateShellCodeInstaller(string solutionDir)
